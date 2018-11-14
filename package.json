@@ -23,14 +23,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kastentx/magicat.git"
+    "url": "git+https://github.com/CODAIT/magicat.git"
   },
   "author": "kastentx",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/kastentx/magicat/issues"
+    "url": "https://github.com/CODAIT/magicat/issues"
   },
-  "homepage": "https://github.com/kastentx/magicat#readme",
+  "homepage": "https://github.com/CODAIT/magicat#readme",
   "keywords": [
     "command-line",
     "computer-vision",
