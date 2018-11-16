@@ -8,15 +8,21 @@ require('@tensorflow/tfjs-node')
 const tf = require('@tensorflow/tfjs')
 const fs = require('fs')
 const terminalImage = require('terminal-image')
-const argv = require('yargs').argv
 const jimp = require('jimp')
+const commandLineUsage = require('command-line-usage')
 const { createCanvas, Image } = require('canvas')
 const canvas = createCanvas(513, 513)
 const ctx = canvas.getContext('2d')
+const argv = require('yargs')
+  .coerce('contains', opt => opt.toLowerCase())
+  .coerce('save', opt => opt.toLowerCase())
+  .coerce('show', opt => typeof opt === String ? opt.toLowerCase() : opt)
+  .argv
 const userInput = argv._[0]
 
-const MODEL_PATH = 'file://' + __dirname + '/model/tensorflowjs_model.pb'
-const WEIGHTS_PATH = 'file://' + __dirname + '/model/weights_manifest.json'
+
+const MODEL_PATH = `file://${ __dirname }/model/tensorflowjs_model.pb`
+const WEIGHTS_PATH = `file://${ __dirname }/model/weights_manifest.json`
 
 const OBJ_LIST = ['background', 'airplane', 'bicycle', 'bird', 'boat', 
 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'dining table', 
@@ -41,12 +47,14 @@ const getColor = pixel => COLOR_LIST[pixel - 1]
 
 const URLtoB64 = dataURL => dataURL.split(',')[1]
 
+const containsObject = (objName, modelJSON) => modelJSON.foundObjects.indexOf(objName) !== -1
+
 const isImageFile = userInput => {
   const imgTypes = ['bmp', 'gif', 'jpg', 'jpeg', 'png']
   try {
     return fs.lstatSync(userInput).isFile() 
       && userInput.split('.').length > 1 
-      && imgTypes.indexOf(userInput.split('.').slice(-1)[0]) !== -1
+      && imgTypes.indexOf(userInput.toLowerCase().split('.').slice(-1)[0]) !== -1
   } catch(e) {
     return false
   }
@@ -60,12 +68,115 @@ const isDirectory = userInput => {
   }
 }
 
+const showHelpScreen = () => {
+  const sections = [
+    {
+      header: '🧙😺 magicat',
+      content: 'A Deep Learning powered CLI utility.'
+    },
+    {
+      header: 'Synopsis',
+      content: [
+        '$ magicat <file> [--{bold command}]',
+        '$ magicat <directory> [--{bold command}]',
+        '$ magicat [{bold help} | -{bold h}]'
+      ]
+    },
+    {
+      header: 'Command List',
+      content: [
+        { name: '{bold save} {underline object}', summary: "Save the specfied object to it's own file. Also works with 'all'." },
+        { name: '{bold show} {underline object}', summary: "Show the specified object (or the entire image if blank) in the terminal." },
+        { name: '{bold contains} {underline object}', summary: "Returns a list of images containing the specified object." },
+      ]
+    },
+    {
+      header: 'Examples',
+      content: [
+        {
+          desc: '1. Examine objects contained in an image. ',
+          example: '$ magicat path/to/image.png'
+        },
+        {
+          desc: "2. Show the 'dining table' from sample.jpg. ",
+          example: `$ magicat sample.jpg --show 'dining table'`
+        },
+        {
+          desc: "3. Scan the 'pets' directory for images containing a dog. ",
+          example: '$ magicat pets/ --contains dog'
+        }
+      ]
+    },
+    {
+      header: 'Detectable Objects',
+      content: [
+        {
+          desc: '1. Airplane',
+          example: '11. Dining Table'
+        },
+        {
+          desc: "2. Bicycle",
+          example: '12. Dog'
+        },
+        {
+          desc: "3. Bird",
+          example: '13. Horse'
+        },
+        {
+          desc: "4. Boat",
+          example: '14. Motorbike'
+        },
+        {
+          desc: "5. Bottle",
+          example: '15. Person'
+        },
+        {
+          desc: '6. Bus',
+          example: '16. Potted Plant'
+        },
+        {
+          desc: "7. Car",
+          example: '17. Sheep'
+        },
+        {
+          desc: "8. Cat",
+          example: '18. Sofa'
+        },
+        {
+          desc: "9. Chair",
+          example: '19. Train'
+        },
+        {
+          desc: "10. Cow",
+          example: '20. TV'
+        }        
+      ]
+    },    
+    {
+      content: 'Project home: {underline https://github.com/CODAIT/magicat}'
+    },
+    {
+      content: 'Built using an open-source deep learning model from the Model Asset eXchange: {underline https://developer.ibm.com/exchanges/models}'
+    }
+  ]
+  console.log(commandLineUsage(sections))
+}
+
+const objectFilter = (objName, modelJSON) => {
+  if (containsObject(objName, modelJSON)) {
+    console.log(`\n${ objName.substr(0, 1).toUpperCase() + objName.substr(1) } was found in '${ process.cwd() }/${ modelJSON.fileName }'.`)
+  } else {
+    console.log(`\n${ objName.substr(0, 1).toUpperCase() + objName.substr(1) } not found in '${ process.cwd() }/${ modelJSON.fileName }'.`)
+  }
+
+}
+
 const parsePrediction = modelOutput => {
   const objIDs = [...new Set(modelOutput)] // eslint-disable-next-line
   const objPixels = modelOutput.reduce((a, b) => (a[OBJ_LIST[b]] = ++a[OBJ_LIST[b]] || 1, a), {})
   const objTypes = objIDs.map(x => OBJ_LIST[x])
   return {
-    foundSegments: objTypes.concat('colormap'),
+    foundObjects: objTypes.concat('colormap'),
     response: {
       objectTypes: objTypes,
       objectIDs: objIDs,
@@ -75,7 +186,7 @@ const parsePrediction = modelOutput => {
   }
 }
 
-const cropSegment = (segmentName, modelJSON) => {
+const cropObject = (objectName, modelJSON) => {
   return new Promise((resolve, reject) => {
     const data = modelJSON.data
     let img = new Image()
@@ -83,10 +194,12 @@ const cropSegment = (segmentName, modelJSON) => {
     img.onload = () => {
       try {
         const flatSegMap = modelJSON.response.flatSegMap
+        ctx.canvas.width = img.width
+        ctx.canvas.height = img.height
         ctx.drawImage(img, 0, 0, img.width, img.height)
         const imageData = ctx.getImageData(0, 0, img.width, img.height)
         const data = imageData.data
-        if (segmentName === 'colormap') {
+        if (objectName === 'colormap') {
           for (let i = 0; i < data.length; i += 4) {
             const segMapPixel = flatSegMap[i / 4]
             let objColor = [0, 0, 0]
@@ -101,7 +214,7 @@ const cropSegment = (segmentName, modelJSON) => {
         } else { 
           for (let i = 0; i < data.length; i += 4) {
             const segMapPixel = flatSegMap[i / 4]
-            if (segMapPixel !== OBJ_MAP[segmentName]) {
+            if (segMapPixel !== OBJ_MAP[objectName]) {
               data[i+3] = 0           // alpha
             }
           }
@@ -117,10 +230,23 @@ const cropSegment = (segmentName, modelJSON) => {
   })
 }
 
-const saveSegment = async (fileName, segName, modelJSON) => {
-  const outputName = `${ fileName.split('.')[0] }-${ segName }.png`
-  console.log(`saved ${ outputName }`)
-  fs.writeFileSync(outputName, Buffer.from(await cropSegment(segName, modelJSON), 'base64'))
+const doSave = async (objName, modelJSON) => {
+  const outputName = `${ modelJSON.fileName.split('.')[0] }-${ objName }.png`
+  console.log(`saved ${ outputName.split('/').slice(-1)[0] }`)
+  fs.writeFileSync(`${ process.cwd() }/${ outputName.split('/').slice(-1)[0] }`, Buffer.from(await cropObject(objName, modelJSON), 'base64'))
+}
+
+const saveObject = async (objName, modelJSON) => {
+  if (objName === 'all') {
+    modelJSON.foundObjects.forEach(async obj => {
+      await doSave(obj, modelJSON)
+    })
+  } else if (argv.save !== true && modelJSON.foundObjects.indexOf(argv.save) !== -1) {
+    await doSave(objName, modelJSON)
+  } else {
+    console.log(`\n'${ objName.substr(0, 1).toUpperCase() + objName.substr(1) }' not found. ` + 
+      `After the --save flag, provide an object name from the list above, or 'all' to save each segment individually.`)
+  }
   return null
 }
 
@@ -141,7 +267,8 @@ const getPrediction = fileName => {
             ...parsePrediction(
             Array.from(
             model.predict(myTensor).dataSync())), 
-            data: scaledImage
+            data: scaledImage,
+            fileName
           })
         } catch (e) {
           reject(`error processing image - ${ e }`)
@@ -153,63 +280,96 @@ const getPrediction = fileName => {
   })  
 }
 
+const showPreview = async (objName, modelJSON) => {
+  if (objName === true) {
+    console.log(await terminalImage.buffer(Buffer.from(modelJSON.data)))
+  } else if (objName && objName !== true && modelJSON.foundObjects.indexOf(objName) === -1) {
+    console.log(`\n'${ objName.substr(0, 1).toUpperCase() + objName.substr(1) }' not found. ` + 
+      `After the --show flag, provide an object name from the list above or 'colormap' to view the highlighted object colormap.`)
+  } else {
+    console.log(await terminalImage.buffer(Buffer.from(await cropObject(argv.show, modelJSON), 'base64')))
+  }
+}
+
 const processImage = async fileName => {
   try {    
     const modelJSON = await getPrediction(fileName)
-    
-    if (!argv.show || (argv.show !== true && modelJSON.foundSegments.indexOf(argv.show) === -1)) {
-      console.log(`The image '${ fileName }' contains the following segments: ${ modelJSON.response.objectTypes.join(', ') }.`)
-    } else if (argv.show === true) { 
-      (async () => console.log(await terminalImage.buffer(Buffer.from(modelJSON.data))))()
-    } else if (argv.show !== true) {
-      (async () => console.log(await terminalImage.buffer(Buffer.from(await cropSegment(argv.show, modelJSON), 'base64'))))()
-    } 
-
-    if (argv.show === true || (argv.show && modelJSON.foundSegments.indexOf(argv.show) === -1)) {
-      console.log(`\nAfter the --show flag, provide an object name from the list above, or 'colormap' to view the highlighted object colormap.`)
+    if (argv.contains) {
+      objectFilter(argv.contains, modelJSON)
+    } else {
+      console.log(`The image '${ process.cwd() }/${ fileName }' contains the following segments: ${ modelJSON.response.objectTypes.join(', ') }.`)
     }
-
+    if (argv.show) {
+      showPreview(argv.show, modelJSON)
+    }
     if (argv.save) {
-      if (argv.save === 'all') {
-        modelJSON.foundSegments.forEach(seg => {
-          saveSegment(fileName, seg, modelJSON)
-        })
-      } else if (argv.save !== true && modelJSON.foundSegments.indexOf(argv.save) !== -1) {
-        saveSegment(fileName, argv.save, modelJSON)
-      } else {
-        console.log(`\nAfter the --save flag, provide an object name from the list above, or 'all' to save each segment individually.`)
-      }
+      saveObject(argv.save, modelJSON)
     }
   } catch (e) {
     console.error(`error processing image ${ fileName } - ${ e }`)
   }
 }
 
+const buildResponseMap = async (dirName, dirContents) => {
+  return new Promise(async (resolve, reject) => {
+    let responseMap = {}
+    try {
+      for (let file of dirContents) {
+        const response = await getPrediction(`${ dirName }/${ file }`)
+        if (argv.contains && containsObject(argv.contains, response)) {
+          responseMap[file] = response
+        } else if (!argv.contains) {
+          responseMap[file] = response
+        }
+      }
+    } catch (e) {
+      console.error(`error building response map - ${ e }`)
+      reject({})
+    }
+    resolve(responseMap)
+  })
+}
+
 const processDirectory = async dirName => {
-  console.log(`Scanning directory ${ dirName }...`)
+  console.log(`Scanning directory '${ process.cwd() }/${ dirName }'${ argv.contains ? ` for ${ argv.contains }` : `` }...\n`)
   let cleanDirName
   if (dirName.substr(-1) === '/') {
     cleanDirName = dirName.substr(0, dirName.length - 1)
   } else {
     cleanDirName = dirName
   }
-
-  const contents = fs.readdirSync(cleanDirName)
-  contents.map(async file => {
+  const rawContents = fs.readdirSync(cleanDirName)
+  const responseMap = await buildResponseMap(cleanDirName, rawContents)
+  const contents = Object.keys(responseMap)
+  contents.forEach(async file => {
     try {
-      const modelJSON = await getPrediction(cleanDirName + '/' + file)
-      console.log(`The image '${ file }' contains the following segments: ${ modelJSON.response.objectTypes.join(', ') }.`)
+      if (argv.contains) {
+        console.log(`${ process.cwd() }/${ cleanDirName }/${ file }`)
+      } else {
+        console.log(`The image '${ file }' contains the following segments: ${ responseMap[file].response.objectTypes.join(', ') }.`)
+      }
+
+      if (argv.save) {
+        saveObject(argv.save, responseMap[file])
+      }
+      if (argv.show) {
+        showPreview(argv.show, responseMap[file])
+      }
     } catch (e) {
       console.log(`error processing directory ${ cleanDirName } - ${ e }`)
     }
   })
+
 }
 
-const handleInput = async input => {
+const handleInput = async rawInput => {
+  const input = rawInput.toLowerCase()
   if (isImageFile(input)) { 
     processImage(input)
   } else if (isDirectory(input)) {
-    await processDirectory(input)
+    processDirectory(input)
+  } else if (!input || input === '-h' || input === '--help') {
+    showHelpScreen()
   } else {
     console.error(`Invalid input. Please specify an image file or directory.`)
   }
