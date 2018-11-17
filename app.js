@@ -14,12 +14,11 @@ const { createCanvas, Image } = require('canvas')
 const canvas = createCanvas(513, 513)
 const ctx = canvas.getContext('2d')
 const argv = require('yargs')
-  .coerce('contains', opt => opt.toLowerCase())
-  .coerce('save', opt => opt.toLowerCase())
+  .coerce('contains', opt => opt ? opt.toLowerCase() : opt)
+  .coerce('save', opt => opt ? opt.toLowerCase() : opt)
   .coerce('show', opt => typeof opt === String ? opt.toLowerCase() : opt)
   .argv
 const userInput = argv._[0]
-
 
 const MODEL_PATH = `file://${ __dirname }/model/tensorflowjs_model.pb`
 const WEIGHTS_PATH = `file://${ __dirname }/model/weights_manifest.json`
@@ -72,7 +71,7 @@ const showHelpScreen = () => {
   const sections = [
     {
       header: '🧙😺 magicat',
-      content: 'A Deep Learning powered CLI utility.'
+      content: 'A Deep Learning powered CLI utility for identifying the contents of image files. Your very own command-line crystal ball 🔮.'
     },
     {
       header: 'Synopsis',
@@ -87,7 +86,8 @@ const showHelpScreen = () => {
       content: [
         { name: '{bold save} {underline object}', summary: "Save the specfied object to it's own file. Also works with 'all'." },
         { name: '{bold show} {underline object}', summary: "Show the specified object (or the entire image if blank) in the terminal." },
-        { name: '{bold contains} {underline object}', summary: "Returns a list of images containing the specified object." },
+        { name: '{bold contains} {underline object} [--{bold verbose}]', summary: "Returns list of images containing the specified object." },
+        { name: ' ', summary: "(Use --verbose option to see all results)." },
       ]
     },
     {
@@ -95,7 +95,7 @@ const showHelpScreen = () => {
       content: [
         {
           desc: '1. Examine objects contained in an image. ',
-          example: '$ magicat path/to/image.png'
+          example: '$ magicat path/to/IMAGE.PNG'
         },
         {
           desc: "2. Show the 'dining table' from sample.jpg. ",
@@ -103,7 +103,7 @@ const showHelpScreen = () => {
         },
         {
           desc: "3. Scan the 'pets' directory for images containing a dog. ",
-          example: '$ magicat pets/ --contains dog'
+          example: '$ magicat pets/ --contains Dog'
         }
       ]
     },
@@ -152,11 +152,11 @@ const showHelpScreen = () => {
         }        
       ]
     },    
-    {
-      content: 'Project home: {underline https://github.com/CODAIT/magicat}'
+    { 
+      content: '{bold Project home}: {underline https://github.com/CODAIT/magicat}' 
     },
-    {
-      content: 'Built using an open-source deep learning model from the Model Asset eXchange: {underline https://developer.ibm.com/exchanges/models}'
+    { 
+      content: 'Built using an open-source deep learning model from the {bold Model Asset eXchange}: {underline https://developer.ibm.com/exchanges/models}' 
     }
   ]
   console.log(commandLineUsage(sections))
@@ -164,11 +164,14 @@ const showHelpScreen = () => {
 
 const objectFilter = (objName, modelJSON) => {
   if (containsObject(objName, modelJSON)) {
-    console.log(`\n${ objName.substr(0, 1).toUpperCase() + objName.substr(1) } was found in '${ process.cwd() }/${ modelJSON.fileName }'.`)
+    console.log(`\n${ objName.substr(0, 1).toUpperCase() + objName.substr(1) } found in '${ process.cwd() }/${ modelJSON.fileName }'.`)
+    process.exit(0)
   } else {
-    console.log(`\n${ objName.substr(0, 1).toUpperCase() + objName.substr(1) } not found in '${ process.cwd() }/${ modelJSON.fileName }'.`)
+    if (argv.verbose === true) {
+      console.log(`\n${ objName.substr(0, 1).toUpperCase() + objName.substr(1) } not found in '${ process.cwd() }/${ modelJSON.fileName }'.`)
+    }
+    process.exit(1)    
   }
-
 }
 
 const parsePrediction = modelOutput => {
@@ -297,7 +300,7 @@ const processImage = async fileName => {
     if (argv.contains) {
       objectFilter(argv.contains, modelJSON)
     } else {
-      console.log(`The image '${ process.cwd() }/${ fileName }' contains the following segments: ${ modelJSON.response.objectTypes.join(', ') }.`)
+      console.log(`The image '${ fileName }' contains the following segments: ${ modelJSON.response.objectTypes.join(', ') }.`)
     }
     if (argv.show) {
       showPreview(argv.show, modelJSON)
@@ -315,36 +318,53 @@ const buildResponseMap = async (dirName, dirContents) => {
     let responseMap = {}
     try {
       for (let file of dirContents) {
-        const response = await getPrediction(`${ dirName }/${ file }`)
-        if (argv.contains && containsObject(argv.contains, response)) {
-          responseMap[file] = response
-        } else if (!argv.contains) {
-          responseMap[file] = response
+        if (isImageFile(`${ dirName }/${ file }`)) {
+          const response = await getPrediction(`${ dirName }/${ file }`)
+          if (argv.contains && containsObject(argv.contains, response)) {
+            responseMap[file] = response
+          } else if (!argv.contains) {
+            responseMap[file] = response
+          }
         }
       }
     } catch (e) {
       console.error(`error building response map - ${ e }`)
-      reject({})
     }
     resolve(responseMap)
   })
 }
 
-const processDirectory = async dirName => {
-  console.log(`Scanning directory '${ process.cwd() }/${ dirName }'${ argv.contains ? ` for ${ argv.contains }` : `` }...\n`)
-  let cleanDirName
-  if (dirName.substr(-1) === '/') {
-    cleanDirName = dirName.substr(0, dirName.length - 1)
+const processDirectory = async dirname => {
+  const dirName = dirname.substr(-1) === '/' ? dirname.substr(0, dirname.length - 1) : dirname
+  
+  let fullDirName
+  if (dirName.substr(0,1) === '/') {
+    fullDirName = dirName
+  } else if (dirName === '.') {
+    fullDirName = process.cwd()
   } else {
-    cleanDirName = dirName
+    fullDirName = `${ process.cwd() }/${ dirName }`
   }
-  const rawContents = fs.readdirSync(cleanDirName)
-  const responseMap = await buildResponseMap(cleanDirName, rawContents)
+
+  console.log(`Scanning directory '${ fullDirName }'${ argv.contains ? ` for ${ argv.contains }` : `` }...\n`)
+  
+  const rawContents = await fs.readdirSync(dirName)
+  const responseMap = await buildResponseMap(dirName, rawContents)
   const contents = Object.keys(responseMap)
+  const nonMatches = rawContents.filter(file => (!contents.includes(file)))
+
+  if (argv.contains) {
+    if (contents.length > 0) {
+      console.log(`${ argv.contains.substr(0, 1).toUpperCase() + argv.contains.substr(1) } found in:\n`)
+    } else {
+      console.log(`No ${ argv.contains.substr(0, 1).toUpperCase() + argv.contains.substr(1) }${ argv.contains == 'bus' ? `es` : `s` } found.`)
+    }
+  }
+
   contents.forEach(async file => {
     try {
       if (argv.contains) {
-        console.log(`${ process.cwd() }/${ cleanDirName }/${ file }`)
+        console.log(`${ fullDirName }/${ file }`)
       } else {
         console.log(`The image '${ file }' contains the following segments: ${ responseMap[file].response.objectTypes.join(', ') }.`)
       }
@@ -356,14 +376,20 @@ const processDirectory = async dirName => {
         showPreview(argv.show, responseMap[file])
       }
     } catch (e) {
-      console.log(`error processing directory ${ cleanDirName } - ${ e }`)
+      console.log(`error processing directory ${ dirName } - ${ e }`)
     }
   })
 
+  if (argv.contains && argv.verbose === true && nonMatches.length) {
+    console.log(`\nNo ${ argv.contains.substr(0, 1).toUpperCase() + argv.contains.substr(1) }${ argv.contains == 'bus' ? `es` : `s` } found in:\n`)
+    nonMatches.forEach(miss => {
+      console.log(`${ fullDirName }/${ miss }`)
+    })
+  }
+
 }
 
-const handleInput = async rawInput => {
-  const input = rawInput.toLowerCase()
+const handleInput = async input => {
   if (isImageFile(input)) { 
     processImage(input)
   } else if (isDirectory(input)) {

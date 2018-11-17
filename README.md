@@ -11,7 +11,7 @@ npm install -g magicat
 
 That's it! 
 
-Now you can begin using the `magicat` command like your very own command-line crystall ball 🔮 to identify what objects are contained in an image.
+Now you can begin using the `magicat` command like your very own command-line crystal ball 🔮 to identify what objects are contained in an image.
 
 ![basic usage](assets/basic.png)
 
