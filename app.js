@@ -351,7 +351,7 @@ const processDirectory = async dirname => {
   const rawContents = await fs.readdirSync(dirName)
   const responseMap = await buildResponseMap(dirName, rawContents)
   const contents = Object.keys(responseMap)
-  const nonMatches = rawContents.filter(file => (!contents.includes(file)))
+  const nonMatches = rawContents.filter(file => (!contents.includes(file) && isImageFile(file)))
 
   if (argv.contains) {
     if (contents.length > 0) {
