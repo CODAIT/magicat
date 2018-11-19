@@ -51,8 +51,7 @@ const containsObject = (objName, modelJSON) => modelJSON.foundObjects.indexOf(ob
 const isImageFile = userInput => {
   const imgTypes = ['bmp', 'gif', 'jpg', 'jpeg', 'png']
   try {
-    return fs.lstatSync(userInput).isFile() 
-      && userInput.split('.').length > 1 
+    return userInput.split('.').length > 1 
       && imgTypes.indexOf(userInput.toLowerCase().split('.').slice(-1)[0]) !== -1
   } catch(e) {
     return false
@@ -351,8 +350,7 @@ const processDirectory = async dirname => {
   const rawContents = await fs.readdirSync(dirName)
   const responseMap = await buildResponseMap(dirName, rawContents)
   const contents = Object.keys(responseMap)
-  const nonMatches = rawContents.filter(file => (!contents.includes(file) && isImageFile(file)))
-
+  const nonMatches = rawContents.filter(file => !contents.includes(file)).filter(file => isImageFile(file))
   if (argv.contains) {
     if (contents.length > 0) {
       console.log(`${ argv.contains.substr(0, 1).toUpperCase() + argv.contains.substr(1) } found in:\n`)
@@ -386,7 +384,6 @@ const processDirectory = async dirname => {
       console.log(`${ fullDirName }/${ miss }`)
     })
   }
-
 }
 
 const handleInput = async input => {
