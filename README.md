@@ -24,6 +24,10 @@ That's it!
 
 Now you can begin using `magicat` like your very own command-line crystal ball 🔮 to identify what objects are contained in an image.
 
+### Prerequisites
+
+- Node.js v10.x or higher
+
 ## Basic Commands
 
 > For more detailed usage information, see the in-app help page which can be accessed by executing `magicat -h`
