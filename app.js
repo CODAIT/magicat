@@ -243,17 +243,19 @@ const doSave = async (objName, modelJSON) => {
     const noExt = String(cleanFileName).split('.').slice(0,-1)
     outputName = `${ noExt }-${ objName }.png`
   }
-  console.log(`saved ${ outputName.split('/').slice(-1)[0] }`)
+  console.log(`Saved ${ outputName.split('/').slice(-1)[0] }`)
   fs.writeFileSync(`${ process.cwd() }/${ outputName.split('/').slice(-1)[0] }`, Buffer.from(await cropObject(objName, modelJSON), 'base64'))
 }
 
-const saveObject = async (objName, modelJSON) => {
+const saveObject = async (objName, modelJSON, isDirScan = false) => {
   if (objName === 'all') {
     modelJSON.foundObjects.forEach(async obj => {
       await doSave(obj, modelJSON)
     })
   } else if (argv.save !== true && modelJSON.foundObjects.indexOf(argv.save) !== -1) {
     await doSave(objName, modelJSON)
+  } else if (argv.save !== true && modelJSON.foundObjects.indexOf(argv.save) == -1 && isDirScan) {
+    console.log(objName.substr(0, 1).toUpperCase() + objName.substr(1) + ' not found in this image.')
   } else {
     console.log(`\n'${ objName.substr(0, 1).toUpperCase() + objName.substr(1) }' not found. ` + 
       `After the --save flag, provide an object name from the list above, or 'all' to save each segment individually.`)
@@ -377,7 +379,7 @@ const processDirectory = async dirname => {
       }
 
       if (argv.save) {
-        saveObject(argv.save, responseMap[file])
+        saveObject(argv.save, responseMap[file], true)
       }
       if (argv.show) {
         showPreview(argv.show, responseMap[file])
