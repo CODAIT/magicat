@@ -50,6 +50,9 @@ To save any of the objects as individual image files, use the `--save` flag, fol
 
 ![saving objects](assets/save-demo.gif)
 
+To remove an object or background from an image, use the `--remove` flag, followed by the name of the object you'd like to remove or the shorthand aliases 'bg' or 'BG' to remove the background.
+
+
 ## Licenses
 
 | Component | License | Link  |
