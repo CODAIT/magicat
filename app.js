@@ -208,7 +208,6 @@ const cropObject = (objectName, modelJSON, method = 'crop') => {
         ctx.drawImage(img, 0, 0, img.width, img.height)
         const imageData = ctx.getImageData(0, 0, img.width, img.height)
         const data = imageData.data
-        console.log(img.width, img.height)
         if (method === 'crop' ) {
           if (objectName === 'colormap') {
             for (let i = 0; i < data.length; i += 4) {
@@ -223,10 +222,6 @@ const cropObject = (objectName, modelJSON, method = 'crop') => {
               }
             }
           } else { 
-            console.log('flatSegMap.length:' + flatSegMap.length)
-            console.log('flatSegMap.length / 4:' + flatSegMap.length / 4)
-            console.log(canvas.width = img.width)
-            console.log(canvas.height = img.height)
             for (let i = 0; i < data.length; i += 4) {
               const segMapPixel = flatSegMap[i / 4]
               if (segMapPixel !== OBJ_MAP[objectName]) {
