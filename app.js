@@ -233,7 +233,16 @@ const cropObject = (objectName, modelJSON) => {
 }
 
 const doSave = async (objName, modelJSON) => {
-  const outputName = `${ modelJSON.fileName.split('.')[0] }-${ objName }.png`
+  let outputName = ''
+  const re = /[^.\/].*/
+  
+  if (modelJSON.fileName[0] != '.') {
+    outputName = `${ modelJSON.fileName.split('.')[0] }-${ objName }.png`
+  } else {
+    const cleanFileName = modelJSON.fileName.match(re)
+    const noExt = String(cleanFileName).split('.').slice(0,-1)
+    outputName = `${ noExt }-${ objName }.png`
+  }
   console.log(`saved ${ outputName.split('/').slice(-1)[0] }`)
   fs.writeFileSync(`${ process.cwd() }/${ outputName.split('/').slice(-1)[0] }`, Buffer.from(await cropObject(objName, modelJSON), 'base64'))
 }
