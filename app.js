@@ -293,14 +293,21 @@ const getPrediction = fileName => {
   })  
 }
 
-const showPreview = async (objName, modelJSON) => {
+const showPreview = async (objName, modelJSON, isDirScan = false) => {
   if (objName === true) {
     console.log(await terminalImage.buffer(Buffer.from(modelJSON.data)))
-  } else if (objName && objName !== true && modelJSON.foundObjects.indexOf(objName) === -1) {
+  } else if (objName && objName !== true && modelJSON.foundObjects.indexOf(objName) == -1 && !isDirScan) {
     console.log(`\n'${ objName.substr(0, 1).toUpperCase() + objName.substr(1) }' not found. ` + 
       `After the --show flag, provide an object name from the list above or 'colormap' to view the highlighted object colormap.`)
-  } else {
+  } else if (objName && objName !== true && modelJSON.foundObjects.indexOf(objName) == -1 && isDirScan) {
+    console.log(objName.substr(0, 1).toUpperCase() + objName.substr(1) + ' not found in this image.')
+  }
+  else {
     console.log(await terminalImage.buffer(Buffer.from(await cropObject(argv.show, modelJSON), 'base64')))
+  }
+
+  if (modelJSON.foundObjects.indexOf(objName) !== -1) {
+    console.log(modelJSON.fileName)
   }
 }
 
@@ -382,7 +389,7 @@ const processDirectory = async dirname => {
         saveObject(argv.save, responseMap[file], true)
       }
       if (argv.show) {
-        showPreview(argv.show, responseMap[file])
+        showPreview(argv.show, responseMap[file], true)
       }
     } catch (e) {
       console.log(`error processing directory ${ dirName } - ${ e }`)
