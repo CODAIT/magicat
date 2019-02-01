@@ -11,8 +11,6 @@ const terminalImage = require('terminal-image')
 const jimp = require('jimp')
 const commandLineUsage = require('command-line-usage')
 const { createCanvas, Image } = require('canvas')
-const canvas = createCanvas(513, 513)
-const ctx = canvas.getContext('2d')
 const argv = require('yargs')
   .coerce('contains', opt => opt ? opt.toLowerCase() : opt)
   .coerce('remove', opt => opt ? opt.toLowerCase() : opt)
@@ -23,7 +21,6 @@ const userInput = argv._[0]
 
 const MODEL_PATH = `file://${ __dirname }/model/tensorflowjs_model.pb`
 const WEIGHTS_PATH = `file://${ __dirname }/model/weights_manifest.json`
-
 const OBJ_LIST = ['background', 'airplane', 'bicycle', 'bird', 'boat', 
 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'dining table', 
 'dog', 'horse', 'motorbike', 'person', 'potted plant', 'sheep', 
@@ -43,6 +40,10 @@ const COLOR_MAP = {
   gray: [192, 192, 192]
 }
 const COLOR_LIST = Object.values(COLOR_MAP)
+
+let canvas
+let ctx
+
 const getColor = pixel => COLOR_LIST[pixel - 1]
 
 const URLtoB64 = dataURL => dataURL.split(',')[1]
@@ -202,11 +203,12 @@ const cropObject = (objectName, modelJSON, method = 'crop') => {
     img.onload = () => {
       try {
         const flatSegMap = modelJSON.response.flatSegMap
-        ctx.canvas.width = img.width
-        ctx.canvas.height = img.height
+        canvas.width = img.width
+        canvas.height = img.height
         ctx.drawImage(img, 0, 0, img.width, img.height)
         const imageData = ctx.getImageData(0, 0, img.width, img.height)
         const data = imageData.data
+        console.log(img.width, img.height)
         if (method === 'crop' ) {
           if (objectName === 'colormap') {
             for (let i = 0; i < data.length; i += 4) {
@@ -221,6 +223,10 @@ const cropObject = (objectName, modelJSON, method = 'crop') => {
               }
             }
           } else { 
+            console.log('flatSegMap.length:' + flatSegMap.length)
+            console.log('flatSegMap.length / 4:' + flatSegMap.length / 4)
+            console.log(canvas.width = img.width)
+            console.log(canvas.height = img.height)
             for (let i = 0; i < data.length; i += 4) {
               const segMapPixel = flatSegMap[i / 4]
               if (segMapPixel !== OBJ_MAP[objectName]) {
@@ -316,7 +322,11 @@ const getPrediction = fileName => {
         const scaledImage = await data.scaleToFit(513, 513).getBufferAsync(jimp.MIME_PNG)
         try {
           const img = new Image()
-          img.onload = async () => await ctx.drawImage(img, 0, 0)
+          img.onload = async () => {
+            canvas = createCanvas(img.width, img.height)
+            ctx = canvas.getContext('2d')
+            await ctx.drawImage(img, 0, 0)
+          }
           img.onerror = err => { throw err }
           img.src = scaledImage
           const myTensor = tf.fromPixels(canvas).expandDims()   
