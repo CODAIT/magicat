@@ -85,6 +85,7 @@ const showHelpScreen = () => {
       header: 'Command List',
       content: [
         { name: '{bold save} {underline object}', summary: "Save the specfied object to it's own file. Also works with 'all'." },
+        { name: '{bold remove} {underline object}', summary: "Save a copy of the image with the specfied object (or background) removed. Supports aliases 'bg' and 'BG'." },
         { name: '{bold show} {underline object}', summary: "Show the specified object (or the entire image if blank) in the terminal." },
         { name: '{bold contains} {underline object} [--{bold verbose}]', summary: "Returns list of images containing the specified object." },
         { name: ' ', summary: "(Use --verbose option to see all results)." },
@@ -104,6 +105,10 @@ const showHelpScreen = () => {
         {
           desc: "3. Scan the 'pets' directory for images containing a dog. ",
           example: '$ magicat pets/ --contains Dog'
+        },
+        {
+          desc: "4. Remove the background from all images in the current directory. ",
+          example: '$ magicat . --remove BG'
         }
       ]
     },
