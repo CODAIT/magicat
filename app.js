@@ -15,6 +15,7 @@ const canvas = createCanvas(513, 513)
 const ctx = canvas.getContext('2d')
 const argv = require('yargs')
   .coerce('contains', opt => opt ? opt.toLowerCase() : opt)
+  .coerce('remove', opt => opt ? opt.toLowerCase() : opt)
   .coerce('save', opt => opt ? opt.toLowerCase() : opt)
   .coerce('show', opt => typeof opt === String ? opt.toLowerCase() : opt)
   .argv
@@ -188,7 +189,7 @@ const parsePrediction = modelOutput => {
   }
 }
 
-const cropObject = (objectName, modelJSON) => {
+const cropObject = (objectName, modelJSON, method = 'crop') => {
   return new Promise((resolve, reject) => {
     const data = modelJSON.data
     let img = new Image()
@@ -201,22 +202,31 @@ const cropObject = (objectName, modelJSON) => {
         ctx.drawImage(img, 0, 0, img.width, img.height)
         const imageData = ctx.getImageData(0, 0, img.width, img.height)
         const data = imageData.data
-        if (objectName === 'colormap') {
-          for (let i = 0; i < data.length; i += 4) {
-            const segMapPixel = flatSegMap[i / 4]
-            let objColor = [0, 0, 0]
-            if (segMapPixel) {
-              objColor = getColor(modelJSON.response.objectIDs.indexOf(segMapPixel))
-              data[i]   = objColor[0]  // red channel
-              data[i+1] = objColor[1]  // green channel
-              data[i+2] = objColor[2]  // blue channel
-              data[i+3] = 200          // alpha
+        if (method === 'crop' ) {
+          if (objectName === 'colormap') {
+            for (let i = 0; i < data.length; i += 4) {
+              const segMapPixel = flatSegMap[i / 4]
+              let objColor = [0, 0, 0]
+              if (segMapPixel) {
+                objColor = getColor(modelJSON.response.objectIDs.indexOf(segMapPixel))
+                data[i]   = objColor[0]  // red channel
+                data[i+1] = objColor[1]  // green channel
+                data[i+2] = objColor[2]  // blue channel
+                data[i+3] = 200          // alpha
+              }
+            }
+          } else { 
+            for (let i = 0; i < data.length; i += 4) {
+              const segMapPixel = flatSegMap[i / 4]
+              if (segMapPixel !== OBJ_MAP[objectName]) {
+                data[i+3] = 0           // alpha
+              }
             }
           }
-        } else { 
+        } else if (method === 'remove') {
           for (let i = 0; i < data.length; i += 4) {
             const segMapPixel = flatSegMap[i / 4]
-            if (segMapPixel !== OBJ_MAP[objectName]) {
+            if (segMapPixel == OBJ_MAP[objectName]) {
               data[i+3] = 0           // alpha
             }
           }
@@ -247,6 +257,21 @@ const doSave = async (objName, modelJSON) => {
   fs.writeFileSync(`${ process.cwd() }/${ outputName.split('/').slice(-1)[0] }`, Buffer.from(await cropObject(objName, modelJSON), 'base64'))
 }
 
+const doRemove = async (objName, modelJSON) => {
+  let outputName = ''
+  const re = /[^.\/].*/
+  
+  if (modelJSON.fileName[0] != '.') {
+    outputName = `${ modelJSON.fileName.split('.')[0] }-no-${ objName }.png`
+  } else {
+    const cleanFileName = modelJSON.fileName.match(re)
+    const noExt = String(cleanFileName).split('.').slice(0,-1)
+    outputName = `${ noExt }-no-${ objName }.png`
+  }
+  console.log(`Saved ${ outputName.split('/').slice(-1)[0] }`)
+  fs.writeFileSync(`${ process.cwd() }/${ outputName.split('/').slice(-1)[0] }`, Buffer.from(await cropObject(objName, modelJSON, 'remove'), 'base64'))
+}
+
 const saveObject = async (objName, modelJSON, isDirScan = false) => {
   if (objName === 'all') {
     modelJSON.foundObjects.forEach(async obj => {
@@ -259,6 +284,21 @@ const saveObject = async (objName, modelJSON, isDirScan = false) => {
   } else {
     console.log(`\n'${ objName.substr(0, 1).toUpperCase() + objName.substr(1) }' not found. ` + 
       `After the --save flag, provide an object name from the list above, or 'all' to save each segment individually.`)
+  }
+  return null
+}
+
+const removeObject = async (objRaw, modelJSON, isDirScan = false) => {
+  const objName = objRaw == 'bg' || objRaw == 'BG' ? 'background' : objRaw
+  if (objName == 'all' || objName == 'colormap') {
+    console.log(`After the --remove flag, please provide an object name from the list above.`)
+  } else if (argv.remove !== true && modelJSON.foundObjects.indexOf(objName) !== -1) {
+    await doRemove(objName, modelJSON)
+  } else if (argv.remove !== true && modelJSON.foundObjects.indexOf(objName) == -1 && isDirScan) {
+    console.log(objName.substr(0, 1).toUpperCase() + objName.substr(1) + ' not found in this image.')
+  } else {
+    console.log(`\n'${ objName.substr(0, 1).toUpperCase() + objName.substr(1) }' not found. ` + 
+      `After the --remove flag, please provide an object name from the list above.`)
   }
   return null
 }
@@ -325,6 +365,9 @@ const processImage = async fileName => {
     if (argv.save) {
       saveObject(argv.save, modelJSON)
     }
+    if (argv.remove) {
+      removeObject(argv.remove, modelJSON)
+    }
   } catch (e) {
     console.error(`error processing image ${ fileName } - ${ e }`)
   }
@@ -390,6 +433,9 @@ const processDirectory = async dirname => {
       }
       if (argv.show) {
         showPreview(argv.show, responseMap[file], true)
+      }
+      if (argv.remove) {
+        removeObject(argv.remove, responseMap[file], true)
       }
     } catch (e) {
       console.log(`error processing directory ${ dirName } - ${ e }`)
