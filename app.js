@@ -310,7 +310,12 @@ const getPrediction = fileName => {
   return new Promise(async (resolve, reject) => {
     try {
       if (isImageFile(fileName)) {
-        const data = await jimp.read(`${ process.cwd() }/${ fileName }`)
+        let data 
+        if (fileName[0] === '/') {
+          data = await jimp.read(`${ fileName }`)
+        } else {
+          data = await jimp.read(`${ process.cwd() }/${ fileName }`)
+        }  
         const scaledImage = await data.scaleToFit(513, 513).getBufferAsync(jimp.MIME_PNG)
         try {
           const img = new Image()
