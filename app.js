@@ -18,6 +18,7 @@ const argv = require('yargs')
   .coerce('show', opt => typeof opt === String ? opt.toLowerCase() : opt)
   .argv
 const userInput = argv._[0]
+const re = /[^.\/].*/
 
 const MODEL_PATH = `file://${ __dirname }/model/tensorflowjs_model.pb`
 const WEIGHTS_PATH = `file://${ __dirname }/model/weights_manifest.json`
@@ -250,8 +251,6 @@ const cropObject = (objectName, modelJSON, method = 'crop') => {
 
 const doSave = async (objName, modelJSON) => {
   let outputName = ''
-  const re = /[^.\/].*/
-  
   if (modelJSON.fileName[0] != '.') {
     outputName = `${ modelJSON.fileName.split('.')[0] }-${ objName }.png`
   } else {
@@ -265,8 +264,6 @@ const doSave = async (objName, modelJSON) => {
 
 const doRemove = async (objName, modelJSON) => {
   let outputName = ''
-  const re = /[^.\/].*/
-  
   if (modelJSON.fileName[0] != '.') {
     outputName = `${ modelJSON.fileName.split('.')[0] }-no-${ objName }.png`
   } else {
