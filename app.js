@@ -4,115 +4,13 @@
 // suppress TensorFlow 'extended instruction set' warning
 process.env['TF_CPP_MIN_LOG_LEVEL'] = 2
 
-require('@tensorflow/tfjs-node')
-const tf = require('@tensorflow/tfjs')
 const fs = require('fs')
 const terminalImage = require('terminal-image')
 const jimp = require('jimp')
-const commandLineUsage = require('command-line-usage')
+const { showHelpScreen } = require('./lib.js')
 const { createCanvas, Image } = require('canvas')
 
-const showHelpScreen = () => {
-  const sections = [
-    {
-      header: '🧙 😺 magicat',
-      content: 'A Deep Learning powered CLI utility for identifying the contents of image files. Your very own command-line crystal ball 🔮.'
-    },
-    {
-      header: 'Synopsis',
-      content: [
-        '$ magicat <file> [--{bold command}]',
-        '$ magicat <directory> [--{bold command}]',
-        '$ magicat [--{bold help} | -{bold h}]'
-      ]
-    },
-    {
-      header: 'Command List',
-      content: [
-        { name: '{bold save} {underline object}', summary: "Save the specfied object to it's own file. Also works with 'all'." },
-        { name: '{bold remove} {underline object}', summary: "Save a copy of the image with the specfied object (or background) removed. Supports aliases 'bg' and 'BG'." },
-        { name: '{bold show} {underline object}', summary: "Show the specified object (or the entire image if blank) in the terminal." },
-        { name: '{bold contains} {underline object} [--{bold verbose}]', summary: "Returns list of images containing the specified object." },
-        { name: ' ', summary: "(Use --verbose option to see all results)." },
-      ]
-    },
-    {
-      header: 'Examples',
-      content: [
-        {
-          desc: '1. Examine objects contained in an image. ',
-          example: '$ magicat path/to/IMAGE.PNG'
-        },
-        {
-          desc: "2. Show the 'dining table' from sample.jpg. ",
-          example: `$ magicat sample.jpg --show 'dining table'`
-        },
-        {
-          desc: "3. Scan the 'pets' directory for images containing a dog. ",
-          example: '$ magicat pets/ --contains Dog'
-        },
-        {
-          desc: "4. Remove the background from all images in the current directory. ",
-          example: '$ magicat . --remove BG'
-        }
-      ]
-    },
-    {
-      header: 'Detectable Objects',
-      content: [
-        {
-          desc: '1. Airplane',
-          example: '11. Dining Table'
-        },
-        {
-          desc: "2. Bicycle",
-          example: '12. Dog'
-        },
-        {
-          desc: "3. Bird",
-          example: '13. Horse'
-        },
-        {
-          desc: "4. Boat",
-          example: '14. Motorbike'
-        },
-        {
-          desc: "5. Bottle",
-          example: '15. Person'
-        },
-        {
-          desc: '6. Bus',
-          example: '16. Potted Plant'
-        },
-        {
-          desc: "7. Car",
-          example: '17. Sheep'
-        },
-        {
-          desc: "8. Cat",
-          example: '18. Sofa'
-        },
-        {
-          desc: "9. Chair",
-          example: '19. Train'
-        },
-        {
-          desc: "10. Cow",
-          example: '20. TV'
-        }        
-      ]
-    },    
-    { 
-      content: '{bold Project home}: {underline https://github.com/CODAIT/magicat}' 
-    },
-    { 
-      content: 'Built using an open-source deep learning model from the {bold Model Asset eXchange}: {underline https://developer.ibm.com/exchanges/models}' 
-    }
-  ]
-  console.log(commandLineUsage(sections))
-}
-
-
+const { predict, labelsMap } = require('@codait/max-image-segmenter')
 
 const commander = require('commander')
 const program = new commander.Command('magicat')
@@ -135,16 +33,6 @@ for (let item in argv) {
     argv[item] = 'person'
 }
 
-const MODEL_PATH = `file://${ __dirname }/model/tensorflowjs_model.pb`
-const WEIGHTS_PATH = `file://${ __dirname }/model/weights_manifest.json`
-const OBJ_LIST = ['background', 'airplane', 'bicycle', 'bird', 'boat', 
-'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'dining table', 
-'dog', 'horse', 'motorbike', 'person', 'potted plant', 'sheep', 
-'sofa', 'train', 'tv']
-let objMap = {} 
-OBJ_LIST.forEach((x,i)=> objMap[x]=i)
-const OBJ_MAP = objMap
-
 const COLOR_MAP = {
   green: [0, 128, 0],
   red: [255, 0, 0],
@@ -160,7 +48,7 @@ const COLOR_LIST = Object.values(COLOR_MAP)
 let canvas
 let ctx
 
-const getColor = pixel => COLOR_LIST[pixel - 1]
+const getColor = pixel => COLOR_LIST[pixel % COLOR_LIST.length]
 
 const URLtoB64 = dataURL => dataURL.split(',')[1]
 
@@ -196,17 +84,20 @@ const objectFilter = (objName, modelJSON) => {
   }
 }
 
-const parsePrediction = modelOutput => {
-  const objIDs = [...new Set(modelOutput)] // eslint-disable-next-line
-  const objPixels = modelOutput.reduce((a, b) => (a[OBJ_LIST[b]] = ++a[OBJ_LIST[b]] || 1, a), {})
-  const objTypes = objIDs.map(x => OBJ_LIST[x])
+const flatten = function (a) {
+  return Array.isArray(a) ? [].concat(...a.map(flatten)) : a
+}
+
+const parsePrediction = prediction => {
+  const flatSegMap = flatten(prediction.segmentationMap)
+  const objTypes = prediction.objectsDetected
+  const objIDs = objTypes.map(o => labelsMap.indexOf(o))
   return {
     foundObjects: objTypes.concat('colormap'),
     response: {
       objectTypes: objTypes,
       objectIDs: objIDs,
-      objectPixels: objPixels,
-      flatSegMap: modelOutput
+      flatSegMap: flatSegMap
     }
   }
 }
@@ -224,34 +115,31 @@ const cropObject = (objectName, modelJSON, method = 'crop') => {
         ctx.drawImage(img, 0, 0, img.width, img.height)
         const imageData = ctx.getImageData(0, 0, img.width, img.height)
         const data = imageData.data
-        if (method === 'crop' ) {
+        if (method === 'crop') {
           if (objectName === 'colormap') {
-            for (let i = 0; i < data.length; i += 4) {
-              const segMapPixel = flatSegMap[i / 4]
-              let objColor = [0, 0, 0]
-              if (segMapPixel) {
-                objColor = getColor(modelJSON.response.objectIDs.indexOf(segMapPixel))
-                data[i]   = objColor[0]  // red channel
-                data[i+1] = objColor[1]  // green channel
-                data[i+2] = objColor[2]  // blue channel
-                data[i+3] = 200          // alpha
+            let objColor = [0, 0, 0]
+            flatSegMap.forEach((s, i) => {
+              if (s !== labelsMap.indexOf('background')) {
+                objColor = getColor(s)
+                data[(i * 4)] = objColor[0] // red channel
+                data[(i * 4) + 1] = objColor[1] // green channel
+                data[(i * 4) + 2] = objColor[2] // blue channel
+                data[(i * 4) + 3] = 200 // alpha
               }
-            }
-          } else { 
-            for (let i = 0; i < data.length; i += 4) {
-              const segMapPixel = flatSegMap[i / 4]
-              if (segMapPixel !== OBJ_MAP[objectName]) {
-                data[i+3] = 0           // alpha
+            })
+          } else {
+            flatSegMap.forEach((s, i) => {
+              if (s !== labelsMap.indexOf(objectName)) {
+                data[(i * 4) + 3] = 0 // alpha
               }
-            }
+            })
           }
         } else if (method === 'remove') {
-          for (let i = 0; i < data.length; i += 4) {
-            const segMapPixel = flatSegMap[i / 4]
-            if (segMapPixel == OBJ_MAP[objectName]) {
-              data[i+3] = 0           // alpha
+          flatSegMap.forEach((s, i) => {
+            if (s === labelsMap.indexOf(objectName)) {
+              data[(i * 4) + 3] = 0 // alpha
             }
-          }
+          })
         }
         ctx.putImageData(imageData, 0, 0)      
         imageURL = canvas.toDataURL()
@@ -325,13 +213,9 @@ const getPrediction = fileName => {
   return new Promise(async (resolve, reject) => {
     try {
       if (isImageFile(fileName)) {
-        let data 
-        if (fileName[0] === '/') {
-          data = await jimp.read(`${ fileName }`)
-        } else {
-          data = await jimp.read(`${ process.cwd() }/${ fileName }`)
-        }  
-        const scaledImage = await data.scaleToFit(513, 513).getBufferAsync(jimp.MIME_PNG)
+        let fname = fileName[0] === '/' ? fileName : `${process.cwd()}/${fileName}`
+        let data = await jimp.read(fname)
+        const scaledImage = await data.scaleToFit(512, 512).getBufferAsync(jimp.MIME_PNG)
         try {
           const img = new Image()
           img.onload = async () => {
@@ -341,12 +225,9 @@ const getPrediction = fileName => {
           }
           img.onerror = err => { throw err }
           img.src = scaledImage
-          const myTensor = tf.fromPixels(canvas).expandDims()   
-          const model = await tf.loadFrozenModel(MODEL_PATH, WEIGHTS_PATH)
-          resolve({ 
-            ...parsePrediction(
-            Array.from(
-            model.predict(myTensor).dataSync())), 
+
+          resolve({
+            ...parsePrediction(await predict(scaledImage)),
             data: scaledImage,
             fileName
           })
