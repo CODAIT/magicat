@@ -3,7 +3,8 @@
   "version": "1.6.0",
   "description": "Deep learning magic.. with the convenience of cat!",
   "files": [
-    "app.js"
+    "app.js",
+    "lib.js"
   ],
   "bin": {
     "magicat": "app.js"
