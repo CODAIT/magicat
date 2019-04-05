@@ -9,7 +9,7 @@
     "magicat": "app.js"
   },
   "dependencies": {
-    "@codait/max-image-segmenter": "^0.1.4",
+    "@codait/max-image-segmenter": "^0.1.7",
     "canvas": "^2.1.0",
     "command-line-usage": "^5.0.5",
     "commander": "^2.19.0",
