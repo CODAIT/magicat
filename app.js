@@ -227,7 +227,7 @@ const getPrediction = fileName => {
           img.src = scaledImage
 
           resolve({
-            ...parsePrediction(await predict(scaledImage)),
+            ...parsePrediction(await predict(canvas)),
             data: scaledImage,
             fileName
           })
