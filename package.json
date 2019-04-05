@@ -1,17 +1,15 @@
 {
   "name": "magicat",
-  "version": "1.5.5",
-  "description": "",
+  "version": "1.6.0",
+  "description": "Deep learning magic.. with the convenience of cat!",
   "files": [
-    "app.js",
-    "model"
+    "app.js"
   ],
   "bin": {
     "magicat": "app.js"
   },
   "dependencies": {
-    "@tensorflow/tfjs": "^0.13.4",
-    "@tensorflow/tfjs-node": "^0.1.20",
+    "@codait/max-image-segmenter": "^0.1.8",
     "canvas": "^2.1.0",
     "command-line-usage": "^5.0.5",
     "commander": "^2.19.0",
@@ -28,7 +26,7 @@
     "url": "git+https://github.com/CODAIT/magicat.git"
   },
   "author": "kastentx",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/CODAIT/magicat/issues"
   },
