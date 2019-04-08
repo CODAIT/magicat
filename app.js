@@ -145,7 +145,7 @@ const cropObject = (objectName, modelJSON, method = 'crop') => {
         imageURL = canvas.toDataURL()
         resolve(URLtoB64(imageURL))
       } catch (e) {
-        reject(`${ e } - image load error`)
+        reject(`Image load ${ e }`)
       }
     }
     img.src = data
@@ -232,11 +232,11 @@ const getPrediction = fileName => {
             fileName
           })
         } catch (e) {
-          reject(`error processing image - ${ e }`)
+          reject(`Image processing ${ e }`)
         }
       }
     } catch(e) {
-      reject(`error preprocessing image - ${ e }`)
+      reject(`Image pre-processing ${ e }`)
     }
   })  
 }
@@ -277,15 +277,17 @@ const processImage = async fileName => {
       removeObject(argv.remove, modelJSON)
     }
   } catch (e) {
-    console.error(`error processing image ${ fileName } - ${ e }`)
+    console.error(`Error processing '${ fileName }' - ${ e }`)
   }
 }
 
 const buildResponseMap = async (dirName, dirContents) => {
   return new Promise(async (resolve, reject) => {
     let responseMap = {}
+    let fileName
     try {
       for (let file of dirContents) {
+        fileName = file
         if (isImageFile(`${ dirName }/${ file }`)) {
           const response = await getPrediction(`${ dirName }/${ file }`)
           if (argv.contains && containsObject(argv.contains, response)) {
@@ -296,7 +298,7 @@ const buildResponseMap = async (dirName, dirContents) => {
         }
       }
     } catch (e) {
-      console.error(`error building response map - ${ e }`)
+      console.error(`Error encountered with '${ fileName }' while scanning '${ dirName }/' - ${ e }`)
     }
     resolve(responseMap)
   })
@@ -346,7 +348,7 @@ const processDirectory = async dirname => {
         removeObject(argv.remove, responseMap[file], true)
       }
     } catch (e) {
-      console.log(`error processing directory ${ dirName } - ${ e }`)
+      console.log(`Error processing directory '${ dirName }/' - ${ e }`)
     }
   })
 
