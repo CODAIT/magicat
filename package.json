@@ -1,43 +1,49 @@
 {
-  "name": "magicat",
-  "version": "1.6.2",
-  "description": "Deep learning magic.. with the convenience of cat!",
-  "files": [
-    "app.js",
-    "lib.js"
-  ],
+  "name": "@codait/magicat",
+  "version": "0.2.0",
+  "description": "Deep learning magic... with the convenience of cat!",
+  "main": "magicat.js",
   "bin": {
-    "magicat": "app.js"
+    "magicat": "magicat.js"
   },
-  "dependencies": {
-    "@codait/max-image-segmenter": "^0.2.2",
-    "canvas": "^2.1.0",
-    "command-line-usage": "^5.0.5",
-    "commander": "^2.19.0",
-    "jimp": "^0.10.3",
-    "terminal-image": "^0.2.0",
-    "yargs": "^12.0.2"
-  },
-  "devDependencies": {},
+  "files": [
+    "magicat.js",
+    "lib/"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "standard && echo \"Only code linting currently being run\""
   },
+  "contributors": [
+    "Nick Kasten (https://github.com/kastentx)",
+    "va barbosa (https://github.com/vabarbosa/)"
+  ],
+  "license": "Apache-2.0",
+  "keywords": [
+    "image segmenter",
+    "model asset exchange",
+    "max",
+    "tensorflow.js",
+    "tfjs",
+    "machine learning",
+    "deep learning",
+    "command-line",
+    "computer vision"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/CODAIT/magicat.git"
   },
-  "author": "kastentx",
-  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/CODAIT/magicat/issues"
   },
   "homepage": "https://github.com/CODAIT/magicat#readme",
-  "keywords": [
-    "command-line",
-    "computer-vision",
-    "deep-learning",
-    "image",
-    "tensorflow",
-    "tensorflowjs"
-  ]
+  "dependencies": {
+    "@codait/max-image-segmenter": "^0.2.2",
+    "@codait/max-vis": "^0.2.6",
+    "commander": "^5.1.0",
+    "terminal-image": "^0.2.0"
+  },
+  "devDependencies": {
+    "standard": "^14.3.3"
+  }
 }
