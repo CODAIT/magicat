@@ -1,10 +1,6 @@
 #!/usr/bin/env node
 'use strict'
 
-// suppress TensorFlow 'extended instruction set' warning
-// https://stackoverflow.com/questions/35911252/disable-tensorflow-debugging-information
-process.env.TF_CPP_MIN_LOG_LEVEL = 2
-
 const path = require('path')
 const version = require(path.join(__dirname, 'package.json')).version
 const commander = require('commander')

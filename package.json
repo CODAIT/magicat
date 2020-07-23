@@ -1,6 +1,6 @@
 {
   "name": "@codait/magicat",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Deep learning magic... with the convenience of cat!",
   "main": "magicat.js",
   "bin": {
@@ -38,12 +38,12 @@
   },
   "homepage": "https://github.com/CODAIT/magicat#readme",
   "dependencies": {
-    "@codait/max-image-segmenter": "^0.2.2",
-    "@codait/max-vis": "^0.2.6",
-    "commander": "^5.1.0",
+    "@codait/max-image-segmenter": "^0.3.0",
+    "@codait/max-vis": "^0.3.0",
+    "commander": "^6.0.0",
     "terminal-image": "^1.2.0"
   },
   "devDependencies": {
-    "standard": "^14.3.3"
+    "standard": "^14.3.4"
   }
 }
