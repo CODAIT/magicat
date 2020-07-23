@@ -1,6 +1,6 @@
 {
   "name": "@codait/magicat",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Deep learning magic... with the convenience of cat!",
   "main": "magicat.js",
   "bin": {
